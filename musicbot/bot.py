@@ -54,7 +54,7 @@ class MusicBot(discord.Client):
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
             pass
-        
+
         print()
 
         if config_file is None:
@@ -304,7 +304,7 @@ class MusicBot(discord.Client):
                             player.once('play', lambda player, **_: _autopause(player))
                         if not player.playlist.entries:
                             await self.on_player_finished_playing(player)
-                
+
                 except Exception:
                     log.debug("Error joining {0.server.name}/{0.name}".format(channel), exc_info=True)
                     log.error("Failed to join {0.server.name}/{0.name}".format(channel))
@@ -629,9 +629,9 @@ class MusicBot(discord.Client):
                         self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
 
-            
+
             author_perms = self.permissions.for_user(author)
-            
+
             if author not in player.voice_client.channel.voice_members and author_perms.skip_when_absent:
                 newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
@@ -667,8 +667,8 @@ class MusicBot(discord.Client):
 
                 player.pause()
                 self.server_specific_data[player.voice_client.channel.server]['auto_paused'] = True
-        
-        
+
+
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             if not player.autoplaylist:
                 if not self.autoplaylist:
@@ -716,7 +716,7 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-                
+
                 if self.config.auto_pause:
                     player.once('play', lambda player, **_: _autopause(player))
 
@@ -1176,7 +1176,7 @@ class MusicBot(discord.Client):
         else:
             log.info("Not autojoining any voice channels")
             autojoin_channels = set()
-        
+
         if self.config.show_config_at_start:
             print(flush=True)
             log.info("Options:")
@@ -1361,7 +1361,7 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
-    @owner_only
+    #@owner_only
     async def cmd_joinserver(self, message, server_link=None):
         """
         Usage:
@@ -2218,6 +2218,49 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
+    async def cmd_v(self, message, player, new_volume=None):
+        """
+        Usage:
+            {command_prefix}v (+/-)[volume]
+
+        Sets the playback volume. Accepted values are from 1 to 100.
+        Putting + or - before the volume will make the volume change relative to the current volume.
+        """
+
+        if not new_volume:
+            return Response(self.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, delete_after=20)
+
+        relative = False
+        if new_volume[0] in '+-':
+            relative = True
+
+        try:
+            new_volume = int(new_volume)
+
+        except ValueError:
+            raise exceptions.CommandError(self.str.get('cmd-volume-invalid', '`{0}` is not a valid number').format(new_volume), expire_in=20)
+
+        vol_change = None
+        if relative:
+            vol_change = new_volume
+            new_volume += (player.volume * 100)
+
+        old_volume = int(player.volume * 100)
+
+        if 0 < new_volume <= 100:
+            player.volume = new_volume / 100.0
+
+            return Response(self.str.get('cmd-volume-reply', 'Updated volume from **%d** to **%d**') % (old_volume, new_volume), reply=True, delete_after=20)
+
+        else:
+            if relative:
+                raise exceptions.CommandError(
+                    self.str.get('cmd-volume-unreasonable-relative', 'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.').format(
+                        old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume), expire_in=20)
+            else:
+                raise exceptions.CommandError(
+                    self.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
+
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
@@ -2261,7 +2304,7 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     self.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
 
-    @owner_only
+    #@owner_only
     async def cmd_option(self, player, option, value):
         """
         Usage:
@@ -2526,7 +2569,7 @@ class MusicBot(discord.Client):
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
 
-    @owner_only
+    #@owner_only
     async def cmd_setname(self, leftover_args, name):
         """
         Usage:
@@ -2571,7 +2614,7 @@ class MusicBot(discord.Client):
 
         return Response("Set the bot's nickname to `{0}`".format(nick), delete_after=20)
 
-    @owner_only
+    #@owner_only
     async def cmd_setavatar(self, message, url=None):
         """
         Usage:
@@ -2616,11 +2659,11 @@ class MusicBot(discord.Client):
 
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
+
         player = self.get_player_in(channel.server)
         if player and player.is_paused:
             player.resume()
-        
+
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
 
@@ -2643,12 +2686,12 @@ class MusicBot(discord.Client):
         await self.leave_server(t)
         return Response('Left the server: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
 
-    @dev_only
+    #@dev_only
     async def cmd_breakpoint(self, message):
         log.critical("Activating debug breakpoint")
         return
 
-    @dev_only
+    #@dev_only
     async def cmd_objgraph(self, channel, func='most_common_types()'):
         import objgraph
 
@@ -2676,7 +2719,7 @@ class MusicBot(discord.Client):
 
         return Response(data, codeblock='py')
 
-    @dev_only
+    #@dev_only
     async def cmd_debug(self, message, _player, *, data):
         codeblock = "```py\n{}\n```"
         result = None
@@ -2989,7 +3032,7 @@ class MusicBot(discord.Client):
 
                     self.server_specific_data[after.server]['auto_paused'] = True
                     player.pause()
-        else: 
+        else:
             if not state.empty():
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
@@ -2997,7 +3040,7 @@ class MusicBot(discord.Client):
                         channel = state.my_voice_channel,
                         reason = ""
                     ).strip())
- 
+
                     self.server_specific_data[after.server]['auto_paused'] = False
                     player.resume()
 
